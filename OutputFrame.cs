@@ -5,6 +5,7 @@ using System.Text.Json;
 using Tanuden.Rudolf.Adapters.TrainCrew.Internal;
 using Tanuden.Rudolf.Adapters.TrainCrew.Rom;
 using Tanuden.Rudolf.Enums;
+using Tanuden.Rudolf.Profile;
 using Tanuden.Rudolf.Sections;
 using TrainCrew;
 using GameState = TrainCrew.GameState;
@@ -65,7 +66,6 @@ public sealed partial class TrainCrewRudolfAdapter
             Time = new Time
             {
                 Sim = FieldMapper.FormatClock(trainState.NowTime),
-                DateKnown = false,
                 Elapsed = elapsed,
                 Tick = tick
             },
@@ -95,7 +95,7 @@ public sealed partial class TrainCrewRudolfAdapter
                 RichState = FieldMapper.MapAtsRichState(snapshot?.AtsStateBitmask)
             },
             Signals = BuildSignals(signals),
-            SpeedLimit = BuildSpeedLimit(trainState, signals),
+            SpeedLimits = BuildSpeedLimits(trainState, signals),
             Cars = BuildCars(orderedCars),
             Switches = BuildSwitches(switches),
             GameState = new Sections.GameState
@@ -175,7 +175,7 @@ public sealed partial class TrainCrewRudolfAdapter
 
         void Map(string key, PanelLamp lamp)
         {
-            if (src.TryGetValue(lamp, out var on)) lamps.Values[key] = on ? 1 : 0;
+            if (src.TryGetValue(lamp, out var on)) lamps.Values[Vocabularies.DefaultLamps[key]] = on ? 1 : 0;
         }
 
         Map("doorClose", PanelLamp.DoorClose);
@@ -224,7 +224,7 @@ public sealed partial class TrainCrewRudolfAdapter
         return result;
     }
 
-    private static SpeedLimit BuildSpeedLimit(TrainState trainState, List<SignalInfo>? signals)
+    private static SpeedLimits BuildSpeedLimits(TrainState trainState, List<SignalInfo>? signals)
     {
         bool HasTransponderNear(double distance)
         {
@@ -254,16 +254,16 @@ public sealed partial class TrainCrewRudolfAdapter
                 : SpeedLimitType.SpeedLimit;
         }
 
-        var speedLimit = new SpeedLimit
+        var speedLimits = new SpeedLimits
         {
             Current = trainState.speedLimit,
             CurrentType = TypeFor(trainState.speedLimit, 0.0, false)
         };
 
-        // TRAIN CREW exposes only the single immediate next change (capability: speedLimit.next="single").
+        // TRAIN CREW exposes only the single immediate next change (capability: speedLimits.next="single").
         // Emit it as a one-element list; null when there's no upcoming change.
         if (trainState.nextSpeedLimit > 0.0)
-            speedLimit.Next = new List<SpeedLimitNext>
+            speedLimits.Next = new List<SpeedLimitNext>
             {
                 new()
                 {
@@ -273,7 +273,7 @@ public sealed partial class TrainCrewRudolfAdapter
                 }
             };
 
-        return speedLimit;
+        return speedLimits;
     }
 
     private static Cars BuildCars(IReadOnlyList<CarState> orderedCars)
@@ -285,9 +285,13 @@ public sealed partial class TrainCrewRudolfAdapter
             cars.List.Add(new Car
             {
                 CarNo = i + 1,
-                BcPressure = c.BC_Press,
-                Amperage = c.Ampare,
-                OccupancyRate = c.occupancyRate
+                OccupancyRate = c.occupancyRate,
+                // TRAIN CREW reports BC pressure and amperage per car only; both bogies mirror the car value.
+                Bogies = new List<BogieDynamic>
+                {
+                    new() { Position = BogiePosition.Left, BcPressure = c.BC_Press, Amperage = c.Ampare },
+                    new() { Position = BogiePosition.Right, BcPressure = c.BC_Press, Amperage = c.Ampare }
+                }
             });
         }
 

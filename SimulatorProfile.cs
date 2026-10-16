@@ -54,7 +54,7 @@ public sealed partial class TrainCrewRudolfAdapter
             Sim = new SimInfo
             {
                 Name = "TRAIN CREW",
-                Version = string.Empty,
+                Version = null,
                 AdapterName = Constants.AdapterName,
                 AdapterVersion = Constants.AdapterVersion
             },
@@ -86,6 +86,18 @@ public sealed partial class TrainCrewRudolfAdapter
 
         var pantographs = DeterminePantographs(orderedCars, cabDirections);
 
+        // TRAIN CREW exposes no bogie composition; synthesize the typical two-bogie, two-axle car so the
+        // dynamic per-bogie values (which mirror the car value onto both bogies) have static counterparts.
+        static List<BogieStatic> SynthesizeBogies(bool? hasMotor)
+        {
+            List<AxleStatic> axles() => new() { new() { IsPowered = hasMotor ?? false }, new() { IsPowered = hasMotor ?? false } };
+            return new List<BogieStatic>
+            {
+                new() { Position = BogiePosition.Left, Axles = axles() },
+                new() { Position = BogiePosition.Right, Axles = axles() }
+            };
+        }
+
         var vehicle = new VehicleInfo
         {
             Name = name,
@@ -109,7 +121,8 @@ public sealed partial class TrainCrewRudolfAdapter
                 CabDirection = cabDirections[i],
                 PantographType = pantographs[i].Type,
                 PantographDirection = pantographs[i].Direction,
-                Length = 20
+                Length = 20,
+                Bogies = SynthesizeBogies(c.HasMotor)
             });
         }
 
@@ -198,10 +211,13 @@ public sealed partial class TrainCrewRudolfAdapter
         return new Capabilities
         {
             ["physics.gradient"] = E(true),
-            ["physics.perCar"] = E("true"),
-            ["ats.richState"] = E("rich"),
+            ["physics.perCar"] = E("All"),
+            ["ats.richState"] = E(true),
             // TRAIN CREW knows only the immediate next speed-limit change, not the full forward list.
-            ["speedLimit.next"] = E("single"),
+            ["speedLimits.next"] = E("Single"),
+            // The SDK reports every signal it knows ahead, nearest-first.
+            ["signals.next"] = E("MultiDynamic"),
+            ["cars.bogies"] = E(true),
             ["input.command.SetNotch"] = E(true),
             ["input.command.SetPowerNotch"] = E(true),
             ["input.command.SetBrakeNotch"] = E(true),

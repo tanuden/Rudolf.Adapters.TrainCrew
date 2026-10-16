@@ -22,7 +22,7 @@ public sealed partial class TrainCrewRudolfAdapter
             case SetNotchCommand c:
                 if (c.Value <= SetNotchCommand.EB)
                     TrainCrewInput.SetButton(InputAction.NotchEB, true); // EB snap, train-agnostic.
-                else if (c.Relative)
+                else if (c.Relative == true)
                     StepNotch(c.Value);
                 else
                     TrainCrewInput.SetNotch(c.Value);

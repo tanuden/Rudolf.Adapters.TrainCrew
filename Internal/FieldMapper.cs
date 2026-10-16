@@ -50,25 +50,17 @@ internal static class FieldMapper
         return v >= 3000.0 ? -1.0 : v;
     }
 
-    internal static AtsRichState? MapAtsRichState(int? bitmask)
+    internal static List<AtsRichState> MapAtsRichState(int? bitmask)
     {
-        if (bitmask is null or 0) return null;
+        var result = new List<AtsRichState>();
+        if (bitmask is null or 0) return result;
 
         var mask = bitmask.Value;
-        var codes = new List<string>();
-        var names = new List<string>();
-        var severity = new List<int>();
-        var types = new List<AtsRichStateType>();
 
         void Add(int bit, string code, string name, int sev, AtsRichStateType type)
         {
             if ((mask & bit) != 0)
-            {
-                codes.Add(code);
-                names.Add(name);
-                severity.Add(sev);
-                types.Add(type);
-            }
+                result.Add(new AtsRichState { Code = code, Name = name, Severity = sev, Type = type });
         }
 
         Add(1, "P", "P", 0, AtsRichStateType.SpeedCheck);
@@ -79,15 +71,7 @@ internal static class FieldMapper
         Add(1 << 5, "STOP_P", "停P", 0, AtsRichStateType.StopP);
         // bit 6 (1 << 6) = OFF: no rich-state entry.
 
-        if (codes.Count == 0) return null;
-
-        return new AtsRichState
-        {
-            Code = codes.ToArray(),
-            Name = names.ToArray(),
-            Severity = severity.ToArray(),
-            Type = types.ToArray()
-        };
+        return result;
     }
 
     internal static SignalType DetermineSignalType(string? name)
