@@ -28,6 +28,13 @@ public sealed partial class TrainCrewRudolfAdapter
             return null;
         }
 
+        // No consist data yet (game not loaded): the host loop treats null as "skip this tick",
+        // so the host keeps streaming only once real data exists.
+        if (trainState.CarStates is null || trainState.CarStates.Count == 0)
+        {
+            return null;
+        }
+
         var gameState = TrainCrewInput.gameState;
 
         TrainCrewInput.RequestData(DataRequest.Signal | DataRequest.Switch);

@@ -29,6 +29,13 @@ public sealed partial class TrainCrewRudolfAdapter
 
         var gameState = TrainCrewInput.gameState;
 
+        // No consist data yet (game not loaded): report "not ready" via null instead of building a
+        // profile from an empty consist; the host loop keeps polling until real data arrives.
+        if (trainState.CarStates is null || trainState.CarStates.Count == 0)
+        {
+            return null;
+        }
+
         var scenarioId = ResolveScenarioId(trainState.diaName, trainState.CarStates);
         if (_cachedProfile is null)
         {
